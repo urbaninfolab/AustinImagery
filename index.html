@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>UT Austin Campus with CesiumJS</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<body>
+    <div id="cesiumContainer" style="width: 100%; height: 100vh;"></div>
+    <script>
+        // Initialize Cesium Viewer
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ODhiN2NhYi02NzgxLTQ2OWQtOTAzMi02ZTgwYmNjMGJmYjYiLCJpZCI6MTM4NjUzLCJpYXQiOjE2ODQxMTUyNDV9.yzVSoiedb3diO7rOG9kd9Luuamx4Wjnieson-zb3vvk';
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: Cesium.createWorldTerrain()
+        });
+        viewer.scene.light = new Cesium.DirectionalLight({
+        direction: new Cesium.Cartesian3(),
+        intensity: 5 // Minimizes direct lighting but doesn't make models truly "unlit"
+        });
+
+
+        
+
+        // UT TOWER IMPORT
+
+
+        // Define offsets for longitude and latitude in degrees
+        var longitudeOffset = 0.0025; // Adjust as needed
+        var latitudeOffset = -0.00025; // Adjust as needed
+
+        // Apply offsets to original coordinates
+        var towerLongitude = -97.7419629 + longitudeOffset;
+        var towerLatitude = 30.2862175 + latitudeOffset;
+
+        // Continue with previous adjustments
+        var scale = 37; // Adjust scale as needed
+        var heightAdjustment = 209; // Adjust height as needed
+
+        // Correct orientation by adjusting heading, pitch, and roll for UT Tower
+        var heading = Cesium.Math.toRadians(-45); // Example, adjust as needed
+        var pitch = Cesium.Math.toRadians(0); // Typically 0, adjust if needed
+        var roll = Cesium.Math.toRadians(0); // Typically 0, adjust if needed
+        var towerOrientation = Cesium.Transforms.headingPitchRollQuaternion(
+            Cesium.Cartesian3.fromDegrees(towerLongitude, towerLatitude, heightAdjustment),
+            new Cesium.HeadingPitchRoll(heading, pitch, roll)
+        );
+
+        // Add UT Tower with offset, scale, height, and orientation adjustments
+        viewer.entities.add({
+            name: 'UT Tower',
+            position: Cesium.Cartesian3.fromDegrees(towerLongitude, towerLatitude, heightAdjustment),
+            orientation: towerOrientation,
+            model: {
+                uri: 'tower.glb',
+                scale: scale,
+            }
+        });
+
+
+
+
+        // UT STADIUM IMPORT
+
+
+        var longitudeOffset = 0.00090; // Adjust as needed
+        var latitudeOffset = 0.00045; // Adjust as needed
+
+        var stadiumLongitude = -97.7338591 + longitudeOffset;
+        var stadiumLatitude = 30.2830598 + latitudeOffset;
+
+        var heading = Cesium.Math.toRadians(80); // Example, adjust as needed
+        var pitch = Cesium.Math.toRadians(0); // Typically 0, adjust if needed
+        var roll = Cesium.Math.toRadians(7); // Typically 0, adjust if needed
+
+        // Repeat the orientation adjustment for UT Stadium if needed
+        // Assuming same heading, pitch, roll adjustments apply, otherwise, define new ones
+        var stadiumOrientation = Cesium.Transforms.headingPitchRollQuaternion(
+            Cesium.Cartesian3.fromDegrees(stadiumLongitude, stadiumLatitude, heightAdjustment),
+            new Cesium.HeadingPitchRoll(heading, pitch, roll) // Adjust as needed for stadium
+        );
+
+        // Add UT Stadium with offset, scale, height, and orientation adjustments
+        viewer.entities.add({
+            name: 'UT Stadium',
+            position: Cesium.Cartesian3.fromDegrees(stadiumLongitude, stadiumLatitude, 205),
+            orientation: stadiumOrientation,
+            model: {
+                uri: 'stadium.glb',
+                scale: 37, // Adjust scale as needed
+                orientation: stadiumOrientation
+            }
+        });
+
+
+        // --------------
+
+
+
+        // CAMERA CONTROL
+
+
+        // Fly the camera to the initial position near the UT Tower
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(towerLongitude, towerLatitude, 200), // Adjust altitude as needed
+            orientation: {
+                heading: Cesium.Math.toRadians(0),
+                pitch: Cesium.Math.toRadians(-30),
+                roll: 0.0
+            },
+            complete: function() {
+                // Once the fly-in is complete, start rotating around the tower
+                rotateCamera(towerLongitude, towerLatitude, 200); // Adjust altitude as needed for rotation height
+            }
+        });
+
+        var isRotating = true;
+
+        function rotateCamera(longitude, latitude, height) {
+            var center = Cesium.Cartesian3.fromDegrees(longitude, latitude, height);
+            var heading = viewer.camera.heading;
+
+            // Update function to increment heading and move the camera
+            var onTickEventHandler = function(clock) {
+                if (isRotating) {
+                    heading += Cesium.Math.toRadians(0.06); // Adjust rotation speed as needed
+                    var offset = new Cesium.HeadingPitchRange(heading, Cesium.Math.toRadians(-30), 250); // Adjust distance as needed
+                    
+                    // Set the camera to rotate around the center point
+                    viewer.camera.lookAt(center, offset);
+                }
+            };
+
+            viewer.clock.onTick.addEventListener(onTickEventHandler);
+
+            // Allow the user to toggle rotation by clicking on the viewer
+            var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+            handler.setInputAction(function(click) {
+                isRotating = false;
+
+                // Reset camera lookAt transform when stopping rotation to regain full control
+                if (!isRotating) {
+                    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+                }
+            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        }
+
+
+    </script>
+</body>
+</html>
